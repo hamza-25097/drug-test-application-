@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Field Test Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1013;
+    --surface: #171b1f;
+    --surface-alt: #1e2328;
+    --border: #272c32;
+    --text: #e7e9ea;
+    --text-dim: #8b9198;
+    --accent: #3f7ed6;
+    --accent-strong: #5b93e0;
+    --header-h: 56px;
+    --nav-h: 64px;
+  }
+ 
+  * { box-sizing: border-box; }
+ 
+  html, body {
+    height: 100%;
+  }
+ 
+  body {
+    margin: 0;
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+ 
+  .mono {
+    font-family: 'IBM Plex Mono', monospace;
+  }
+ 
+  /* ---- App shell ---- */
+ 
+  .app {
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    position: relative;
+  }
+ 
+  .app-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    height: var(--header-h);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 18px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+ 
+  .app-header h1 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: 0.2px;
+  }
+ 
+  .app-header .subtitle {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 1px;
+  }
+ 
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: inline-block;
+  }
+ 
+  .app-content {
+    flex: 1;
+    padding: 16px 16px calc(var(--nav-h) + 24px);
+    overflow-y: auto;
+  }
+ 
+  .view {
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+  }
+ 
+  .view.active {
+    display: flex;
+  }
+ 
+  /* ---- Bottom nav ---- */
+ 
+  .bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 480px;
+    height: var(--nav-h);
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+ 
+  .nav-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-family: inherit;
+    font-size: 11px;
+    cursor: pointer;
+    padding: 8px 0;
+  }
+ 
+  .nav-btn svg {
+    width: 22px;
+    height: 22px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.7;
+  }
+ 
+  .nav-btn.active {
+    color: var(--accent);
+  }
+ 
+  /* ---- Cards ---- */
+ 
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+ 
+  .card h2 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 12px;
+  }
+ 
+  .card p {
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    margin: 0;
+  }
+ 
+  /* ---- Home view ---- */
+ 
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 4px;
+  }
+ 
+  .step {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+ 
+  .step-num {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+ 
+  .step-text {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+ 
+  .step-text strong {
+    display: block;
+    font-size: 13.5px;
+    margin-bottom: 2px;
+  }
+ 
+  /* ---- Camera view / form elements ---- */
+ 
+  input[type="file"] {
+    font-size: 13px;
+    color: var(--text-dim);
+    width: 100%;
+  }
+ 
+  input[type="text"] {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface-alt);
+    color: var(--text);
+    font-family: inherit;
+  }
+ 
+  input[type="text"]::placeholder {
+    color: var(--text-dim);
+  }
+ 
+  img#preview {
+    width: 100%;
+    border-radius: 8px;
+    margin-top: 12px;
+    display: none;
+  }
+ 
+  #swatch {
+    width: 72px;
+    height: 72px;
+    margin: 12px auto 4px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    display: none;
+  }
+ 
+  #colorInfo {
+    font-size: 12.5px;
+    color: var(--text-dim);
+    line-height: 1.6;
+    text-align: center;
+  }
+ 
+  #result {
+    margin-top: 12px;
+    font-size: 18px;
+    font-weight: 600;
+    padding: 10px;
+    border-radius: 8px;
+    display: none;
+    text-align: center;
+  }
+ 
+  #result.positive { background: #341414; color: #ff8080; }
+  #result.negative { background: #143414; color: #7cff7c; }
+  #result.inconclusive { background: #34301a; color: #ffe27a; }
+ 
+  .btn {
+    width: 100%;
+    padding: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: white;
+    cursor: pointer;
+    font-family: inherit;
+  }
+ 
+  .btn:active {
+    background: var(--accent-strong);
+  }
+ 
+  .btn:disabled {
+    background: var(--surface-alt);
+    color: var(--text-dim);
+    cursor: not-allowed;
+  }
+ 
+  .btn-secondary {
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+ 
+  .status-msg {
+    font-size: 12.5px;
+    color: #ff8080;
+    min-height: 16px;
+    margin-top: 8px;
+    text-align: center;
+  }
+ 
+  .status-msg.ok {
+    color: #7cff7c;
+  }
+ 
+  #locationInfo {
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.6;
+    margin-top: 8px;
+  }
+ 
+  #manualLocationContainer {
+    margin-top: 10px;
+    display: none;
+    gap: 8px;
+  }
+ 
+  #manualLocationContainer.show {
+    display: flex;
+  }
+ 
+  #hashOutput {
+    margin-top: 10px;
+    font-size: 11.5px;
+    word-break: break-all;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    display: none;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+ 
+  hr.divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 14px 0;
+  }
+ 
+  /* ---- Log view ---- */
+ 
+  .log-entry {
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+ 
+  .log-entry + .log-entry {
+    margin-top: 8px;
+  }
+ 
+  .log-entry .log-result {
+    font-size: 13.5px;
+    font-weight: 600;
+  }
+ 
+  .log-entry .log-meta {
+    font-size: 11.5px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+ 
+  .log-empty {
+    font-size: 13px;
+    color: var(--text-dim);
+    text-align: center;
+    padding: 20px 0;
+  }
+</style>
+</head>
+<body>
+ 
+<div class="app">
+ 
+  <header class="app-header">
+    <div>
+      <h1>Field Test Log</h1>
+      <div class="subtitle">Drug test recording</div>
+    </div>
+    <span class="status-dot" title="Ready"></span>
+  </header>
+ 
+  <main class="app-content">
+ 
+    <!-- HOME VIEW -->
+    <section id="view-home" class="view active">
+      <div class="card">
+        <h2>Quick start</h2>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-text"><strong>Capture the test</strong>Go to the Camera tab and upload a photo of the test strip.</div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-text"><strong>Confirm location</strong>Fetch GPS coordinates, or enter the location manually if unavailable.</div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-text"><strong>Sign and save</strong>Enter your Officer ID, generate the record hash, then save to the log.</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>About this record</h2>
+        <p>Each entry combines the classification result, timestamp, location, and Officer ID into a single SHA-256 hash, so any later change to a saved record can be detected.</p>
+      </div>
+    </section>
+ 
+    <!-- CAMERA VIEW -->
+    <section id="view-camera" class="view">
+ 
+      <div class="card">
+        <h2>Upload test image</h2>
+        <input type="file" id="fileInput" accept="image/*">
+        <img id="preview" alt="Uploaded image preview">
+        <div id="swatch"></div>
+        <div id="colorInfo"></div>
+        <div id="result"></div>
+      </div>
+ 
+      <div class="card">
+        <h2>Location</h2>
+        <button class="btn" id="gpsBtn">Get GPS location</button>
+        <div class="status-msg" id="gpsStatus"></div>
+        <div id="locationInfo"></div>
+        <div id="manualLocationContainer">
+          <input type="text" id="manualLocation" placeholder="Enter location manually">
+          <button class="btn btn-secondary" id="saveManualBtn" style="width:auto; padding:10px 16px;">Save</button>
+        </div>
+      </div>
+ 
+      <div class="card">
+        <h2>Sign record</h2>
+        <input type="text" id="officerId" placeholder="Officer ID">
+        <br><br>
+        <button class="btn" id="hashBtn">Generate SHA-256 hash</button>
+        <div class="status-msg" id="hashStatus"></div>
+        <div id="hashOutput" class="mono"></div>
+        <hr class="divider">
+        <button class="btn" id="saveBtn" style="background:#2e7d4d;">Save to log</button>
+        <div class="status-msg" id="saveStatus"></div>
+      </div>
+ 
+      <canvas id="canvas" style="display:none;"></canvas>
+    </section>
+ 
+    <!-- LOG VIEW -->
+    <section id="view-log" class="view">
+      <div class="card">
+        <h2>Saved records</h2>
+        <button class="btn btn-secondary" id="refreshLogBtn">Refresh</button>
+        <div class="status-msg" id="logStatus"></div>
+        <div id="logList" style="margin-top:12px;"></div>
+      </div>
+    </section>
+ 
+  </main>
+ 
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-view="home">
+      <svg viewBox="0 0 24 24"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9h12v-9"/><path d="M10 19v-5h4v5"/></svg>
+      Home
+    </button>
+    <button class="nav-btn" data-view="camera">
+      <svg viewBox="0 0 24 24"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.3"/></svg>
+      Camera
+    </button>
+    <button class="nav-btn" data-view="log">
+      <svg viewBox="0 0 24 24"><path d="M6 5h13"/><path d="M6 12h13"/><path d="M6 19h13"/><circle cx="3" cy="5" r="0.9" fill="currentColor" stroke="none"/><circle cx="3" cy="12" r="0.9" fill="currentColor" stroke="none"/><circle cx="3" cy="19" r="0.9" fill="currentColor" stroke="none"/></svg>
+      Log
+    </button>
+  </nav>
+ 
+</div>
+ 
+<script>
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyDTh3mlxRv7SSlGFLk4PoXUZxo3et2PXqY",
+  authDomain: "drug-testing-application.firebaseapp.com",
+  projectId: "drug-testing-application",
+  storageBucket: "drug-testing-application.firebasestorage.app",
+  messagingSenderId: "992979657887",
+  appId: "1:992979657887:web:5b3993fbb7f27d520feeaa",
+  measurementId: "G-7VKRLXVWS3"
+};
+ 
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+ 
+// ---- Tab navigation ----
+const navButtons = document.querySelectorAll('.nav-btn');
+const views = document.querySelectorAll('.view');
+ 
+navButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    const target = btn.dataset.view;
+ 
+    navButtons.forEach(b => b.classList.toggle('active', b === btn));
+    views.forEach(v => v.classList.toggle('active', v.id === `view-${target}`));
+ 
+    if (target === 'log') {
+      loadLogEntries();
+    }
+  });
+});
+ 
+const fileInput = document.getElementById('fileInput');
+const preview = document.getElementById('preview');
+const canvas = document.getElementById('canvas');
+const swatch = document.getElementById('swatch');
+const colorInfo = document.getElementById('colorInfo');
+const result = document.getElementById('result');
+ 
+// Keeps track of the latest classification text, used later for hashing/saving
+let lastResultText = '';
+let lastConfidence = null;
+ 
+// Reference colors to classify against (cocaine presumptive test: pink pad = negative, blue = positive)
+const references = [
+  { label: 'Positive', className: 'positive', r: 0,   g: 0,   b: 255 },
+  { label: 'Negative', className: 'negative', r: 255, g: 192, b: 203 },
+  { label: 'Inconclusive', className: 'inconclusive', r: 255, g: 255, b: 0 }
+];
+ 
+// Euclidean distance in RGB space; closest reference wins
+function classifyColor(r, g, b) {
+  let closest = references[0];
+  let minDist = Infinity;
+ 
+  references.forEach(ref => {
+    const dist = Math.sqrt(
+      Math.pow(r - ref.r, 2) +
+      Math.pow(g - ref.g, 2) +
+      Math.pow(b - ref.b, 2)
+    );
+    if (dist < minDist) {
+      minDist = dist;
+      closest = ref;
+    }
+  });
+ 
+  // Max possible distance between two RGB colors (used to normalize confidence)
+  const maxDist = Math.sqrt(255 * 255 * 3);
+  const confidence = Math.round((1 - minDist / maxDist) * 100);
+ 
+  return { ...closest, distance: minDist, confidence };
+}
+ 
+fileInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+ 
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    preview.src = event.target.result;
+    preview.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+});
+ 
+// Once the image has actually loaded (has real dimensions), draw it and read the center pixel
+preview.addEventListener('load', () => {
+  canvas.width = preview.naturalWidth;
+  canvas.height = preview.naturalHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(preview, 0, 0);
+ 
+  const centerX = Math.floor(canvas.width / 2);
+  const centerY = Math.floor(canvas.height / 2);
+ 
+  const pixel = ctx.getImageData(centerX, centerY, 1, 1).data;
+  const [r, g, b, a] = pixel;
+  const hex = '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+ 
+  swatch.style.display = 'block';
+  swatch.style.background = `rgb(${r}, ${g}, ${b})`;
+ 
+  colorInfo.innerHTML = `
+    Center pixel (${centerX}, ${centerY})<br>
+    RGB ${r}, ${g}, ${b} &nbsp;·&nbsp; HEX ${hex}
+  `;
+ 
+  let classification = classifyColor(r, g, b);
+ 
+  // Low confidence means the color isn't a clear match to any reference
+  if (classification.confidence < 50) {
+    const inconclusiveRef = references.find(ref => ref.className === 'inconclusive');
+    classification = { ...inconclusiveRef, confidence: classification.confidence };
+  }
+ 
+  result.innerHTML = `${classification.label} <span style="font-size:13px; font-weight:400;">(confidence: ${classification.confidence}%)</span>`;
+  result.className = classification.className;
+  result.style.display = 'block';
+ 
+  lastResultText = `${classification.label} (${classification.confidence}%)`;
+  lastConfidence = classification.confidence;
+});
+ 
+// GPS location capture
+const gpsBtn = document.getElementById('gpsBtn');
+const gpsStatus = document.getElementById('gpsStatus');
+const locationInfo = document.getElementById('locationInfo');
+const manualLocationContainer = document.getElementById('manualLocationContainer');
+const manualLocation = document.getElementById('manualLocation');
+const saveManualBtn = document.getElementById('saveManualBtn');
+ 
+// Keeps track of the latest location string, used later for hashing/saving
+let lastLocationText = '';
+ 
+gpsBtn.addEventListener('click', () => {
+  gpsStatus.textContent = '';
+  gpsStatus.classList.remove('ok');
+  locationInfo.textContent = '';
+  manualLocationContainer.classList.remove('show');
+ 
+  if (!navigator.geolocation) {
+    showManualFallback();
+    return;
+  }
+ 
+  gpsBtn.disabled = true;
+  gpsStatus.textContent = 'Fetching location...';
+ 
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const { latitude, longitude, accuracy } = position.coords;
+      gpsStatus.textContent = '';
+      locationInfo.innerHTML = `
+        Latitude ${latitude.toFixed(6)}<br>
+        Longitude ${longitude.toFixed(6)}<br>
+        Accuracy ±${Math.round(accuracy)} m
+      `;
+      gpsBtn.disabled = false;
+ 
+      lastLocationText = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+    },
+    (error) => {
+      gpsBtn.disabled = false;
+      showManualFallback();
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
+});
+ 
+function showManualFallback() {
+  gpsStatus.textContent = 'Location unavailable — please enter manually';
+  manualLocationContainer.classList.add('show');
+}
+ 
+saveManualBtn.addEventListener('click', () => {
+  const value = manualLocation.value.trim();
+  if (!value) return;
+  locationInfo.innerHTML = `Location (manual): ${value}`;
+  gpsStatus.textContent = '';
+ 
+  lastLocationText = value;
+});
+ 
+// SHA-256 hash generation combining result + timestamp + GPS + officer ID
+const officerIdInput = document.getElementById('officerId');
+const hashBtn = document.getElementById('hashBtn');
+const hashStatus = document.getElementById('hashStatus');
+const hashOutput = document.getElementById('hashOutput');
+ 
+// Keeps track of the latest generated hash + the exact fields used to build it,
+// so the Firebase save can reuse them instead of recomputing with a new timestamp
+let lastHash = '';
+let lastHashTimestamp = '';
+ 
+async function sha256(message) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(message);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+ 
+hashBtn.addEventListener('click', async () => {
+  hashStatus.textContent = '';
+  hashOutput.style.display = 'none';
+ 
+  const officerId = officerIdInput.value.trim();
+ 
+  if (!lastResultText) {
+    hashStatus.textContent = 'Upload an image and get a classification result first.';
+    return;
+  }
+  if (!lastLocationText) {
+    hashStatus.textContent = 'Capture or enter a location first.';
+    return;
+  }
+  if (!officerId) {
+    hashStatus.textContent = 'Enter an Officer ID.';
+    return;
+  }
+ 
+  const timestamp = new Date().toISOString();
+ 
+  // Combine all fields into one string before hashing
+  const combined = `${lastResultText}|${timestamp}|${lastLocationText}|${officerId}`;
+ 
+  hashBtn.disabled = true;
+  hashStatus.textContent = 'Generating hash...';
+ 
+  try {
+    const hash = await sha256(combined);
+    hashStatus.textContent = '';
+    hashOutput.style.display = 'block';
+    hashOutput.innerHTML = `${combined}<br><br>${hash}`;
+ 
+    lastHash = hash;
+    lastHashTimestamp = timestamp;
+  } catch (err) {
+    hashStatus.textContent = 'Error generating hash: ' + err.message;
+  }
+ 
+  hashBtn.disabled = false;
+});
+ 
+// Save the real captured record (not stub values) to Firestore
+const saveBtn = document.getElementById('saveBtn');
+const saveStatus = document.getElementById('saveStatus');
+ 
+saveBtn.addEventListener('click', () => {
+  saveStatus.textContent = '';
+  saveStatus.classList.remove('ok');
+ 
+  const officerId = officerIdInput.value.trim();
+ 
+  if (!lastResultText) {
+    saveStatus.textContent = 'Upload an image and get a classification result first.';
+    return;
+  }
+  if (!lastLocationText) {
+    saveStatus.textContent = 'Capture or enter a location first.';
+    return;
+  }
+  if (!officerId) {
+    saveStatus.textContent = 'Enter an Officer ID.';
+    return;
+  }
+  if (!lastHash) {
+    saveStatus.textContent = 'Generate the SHA-256 hash first.';
+    return;
+  }
+ 
+  saveBtn.disabled = true;
+  saveStatus.textContent = 'Saving...';
+ 
+  db.collection('testrecords').add({
+    result: lastResultText,
+    confidence: lastConfidence,
+    timestamp: lastHashTimestamp,      // same timestamp used in the hash, for consistency
+    location: lastLocationText,
+    officerId: officerId,
+    recordHash: lastHash
+  })
+  .then(() => {
+    saveStatus.textContent = 'Saved!';
+    saveStatus.classList.add('ok');
+    saveBtn.disabled = false;
+  })
+  .catch(err => {
+    saveStatus.textContent = 'Error: ' + err.message;
+    saveBtn.disabled = false;
+  });
+});
+ 
+// ---- Log view: pull saved records back from Firestore ----
+const refreshLogBtn = document.getElementById('refreshLogBtn');
+const logStatus = document.getElementById('logStatus');
+const logList = document.getElementById('logList');
+ 
+async function loadLogEntries() {
+  logStatus.textContent = 'Loading...';
+  logStatus.classList.remove('ok');
+  logList.innerHTML = '';
+ 
+  try {
+    const snapshot = await db.collection('testrecords')
+      .orderBy('timestamp', 'desc')
+      .limit(20)
+      .get();
+ 
+    if (snapshot.empty) {
+      logStatus.textContent = '';
+      logList.innerHTML = '<div class="log-empty">No records saved yet.</div>';
+      return;
+    }
+ 
+    logStatus.textContent = '';
+    logList.innerHTML = '';
+ 
+    snapshot.forEach(doc => {
+      const d = doc.data();
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.innerHTML = `
+        <div class="log-result">${d.result || 'Unknown result'}</div>
+        <div class="log-meta">${d.timestamp || ''}</div>
+        <div class="log-meta">Location: ${d.location || '—'}</div>
+        <div class="log-meta">Officer: ${d.officerId || '—'}</div>
+        <div class="log-meta mono">Hash: ${(d.recordHash || '').slice(0, 16)}...</div>
+      `;
+      logList.appendChild(entry);
+    });
+  } catch (err) {
+    logStatus.textContent = 'Error loading records: ' + err.message;
+  }
+}
+ 
+refreshLogBtn.addEventListener('click', loadLogEntries);
+</script>
+ 
+</body>
+</html>
+ 
